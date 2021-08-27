@@ -27,7 +27,8 @@ export default class FeatureService {
       setAttributionFromService: true,
       f: 'pbf',
       useSeviceBounds: true,
-      projectionEndpoint: `${arcgisOptions.url.split('rest/services')[0]}rest/services/Geometry/GeometryServer/project`
+      projectionEndpoint: `${arcgisOptions.url.split('rest/services')[0]}rest/services/Geometry/GeometryServer/project`,
+      token: null,
     }, arcgisOptions)
 
     this._fallbackProjectionEndpoint = 'https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project'
@@ -280,6 +281,8 @@ export default class FeatureService {
 
     if (this._time) params.append('time', this._time)
 
+    this._appendTokenIfExists(params)
+
     return new Promise((resolve) => {
       fetch(`${`${this._esriServiceOptions.url}/query?${params.toString()}`}`)
         .then((response) => { //eslint-disable-line
@@ -313,7 +316,9 @@ export default class FeatureService {
   _getServiceMetadata () {
     if (this.serviceMetadata !== null) return Promise.resolve(this.serviceMetadata)
     return new Promise((resolve, reject) => {
-      fetch(`${this._esriServiceOptions.url}?f=json`)
+      const params = new URLSearchParams({ f: 'json' });
+      this._appendTokenIfExists(params);
+      fetch(`${this._esriServiceOptions.url}?${params.toString()}`)
         .then(response => response.json())
         .then((data) => {
           this.serviceMetadata = data
@@ -346,6 +351,8 @@ export default class FeatureService {
       f: 'geojson'
     })
 
+    this._appendTokenIfExists(params);
+
     return new Promise((resolve) => {
       this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`)
         .then(data => resolve(data))
@@ -362,6 +369,8 @@ export default class FeatureService {
       outFields: '*',
       f: 'geojson'
     })
+
+    this._appendTokenIfExists(params)
 
     return new Promise((resolve) => {
       this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`)
@@ -380,15 +389,26 @@ export default class FeatureService {
       f: 'json'
     })
 
+    if (!usingFallback) {
+      // fallback will fail if token is sent with request
+      this._appendTokenIfExists(params)
+    }
+
+
     this._requestJson(`${this._esriServiceOptions.projectionEndpoint}?${params.toString()}`)
       .then((data) => {
         const extent = data.geometries[0]
         this._maxExtent = [extent.xmin, extent.ymin, extent.xmax, extent.ymax]
         this._clearAndRefreshTiles()
       })
-      .catch(() => {
-        this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint
-        this._projectBounds()
+      .catch((err) => {
+        if (!usingFallback) {
+          this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint
+          this._projectBounds({ usingFallback: true })
+        } else {
+          // don't call this._projectBounds infinitely in the case of an error using the fallback
+          throw err;
+        }
       })
   }
 
@@ -430,6 +450,10 @@ export default class FeatureService {
     attributionController._updateAttributions()
   }
 
+  _appendTokenIfExists(params) {
+    if (this._esriServiceOptions.token !== null) {
+      params.append('token', this._esriServiceOptions.token)
+    }
+  }
+
 }
-
-
