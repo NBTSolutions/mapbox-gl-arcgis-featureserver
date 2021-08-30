@@ -397,7 +397,7 @@ export default class FeatureService {
       })
       .catch(() => {
         this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint
-        this._projectBounds({ usingFallback: true })
+        this._projectBounds()
       })
   }
 
