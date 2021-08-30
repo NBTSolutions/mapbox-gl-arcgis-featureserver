@@ -389,26 +389,15 @@ export default class FeatureService {
       f: 'json'
     })
 
-    if (!usingFallback) {
-      // fallback will fail if token is sent with request
-      this._appendTokenIfExists(params)
-    }
-
-
     this._requestJson(`${this._esriServiceOptions.projectionEndpoint}?${params.toString()}`)
       .then((data) => {
         const extent = data.geometries[0]
         this._maxExtent = [extent.xmin, extent.ymin, extent.xmax, extent.ymax]
         this._clearAndRefreshTiles()
       })
-      .catch((err) => {
-        if (!usingFallback) {
-          this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint
-          this._projectBounds({ usingFallback: true })
-        } else {
-          // don't call this._projectBounds infinitely in the case of an error using the fallback
-          throw err;
-        }
+      .catch(() => {
+        this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint
+        this._projectBounds({ usingFallback: true })
       })
   }
 
