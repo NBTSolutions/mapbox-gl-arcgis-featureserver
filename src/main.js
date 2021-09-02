@@ -1,16 +1,14 @@
-import tilebelt from "@mapbox/tilebelt";
-import tileDecode from "arcgis-pbf-parser";
+import tilebelt from '@mapbox/tilebelt';
+import tileDecode from 'arcgis-pbf-parser';
 
 export default class FeatureService {
   constructor(sourceId, map, arcgisOptions, geojsonSourceOptions) {
     if (!sourceId || !map || !arcgisOptions)
       throw new Error(
-        "Source id, map and arcgisOptions must be supplied as the first three arguments."
+        'Source id, map and arcgisOptions must be supplied as the first three arguments.',
       );
     if (!arcgisOptions.url)
-      throw new Error(
-        "A url must be supplied as part of the esriServiceOptions object."
-      );
+      throw new Error('A url must be supplied as part of the esriServiceOptions object.');
 
     this.sourceId = sourceId;
     this._map = map;
@@ -25,23 +23,23 @@ export default class FeatureService {
         minZoom: arcgisOptions.useStaticZoomLevel ? 7 : 2,
         simplifyFactor: 0.3,
         precision: 8,
-        where: "1=1",
+        where: '1=1',
         to: null,
         from: null,
-        outFields: "*",
+        outFields: '*',
         setAttributionFromService: true,
-        f: "pbf",
+        f: 'pbf',
         useSeviceBounds: true,
         projectionEndpoint: `${
-          arcgisOptions.url.split("rest/services")[0]
+          arcgisOptions.url.split('rest/services')[0]
         }rest/services/Geometry/GeometryServer/project`,
         token: null,
       },
-      arcgisOptions
+      arcgisOptions,
     );
 
     this._fallbackProjectionEndpoint =
-      "https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project";
+      'https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project';
     this.serviceMetadata = null;
     this._maxExtent = [-Infinity, Infinity, -Infinity, Infinity];
 
@@ -49,20 +47,18 @@ export default class FeatureService {
     this._map.addSource(
       sourceId,
       Object.assign(gjOptions, {
-        type: "geojson",
+        type: 'geojson',
         data: this._getBlankFc(),
-      })
+      }),
     );
 
     this._getServiceMetadata().then(() => {
       if (!this.supportsPbf) {
         if (!this.supportsGeojson) {
           this._map.removeSource(sourceId);
-          throw new Error(
-            "Server does not support PBF or GeoJSON query formats."
-          );
+          throw new Error('Server does not support PBF or GeoJSON query formats.');
         }
-        this._esriServiceOptions.f = "geojson";
+        this._esriServiceOptions.f = 'geojson';
       }
 
       if (this._esriServiceOptions.useSeviceBounds) {
@@ -80,7 +76,7 @@ export default class FeatureService {
         }
       }
 
-      if (this._esriServiceOptions.outFields !== "*") {
+      if (this._esriServiceOptions.outFields !== '*') {
         this._esriServiceOptions.outFields = `${this._esriServiceOptions.outFields},${this.serviceMetadata.uniqueIdField.name}`;
       }
 
@@ -97,7 +93,7 @@ export default class FeatureService {
 
   _getBlankFc() {
     return {
-      type: "FeatureCollection",
+      type: 'FeatureCollection',
       features: [],
     };
   }
@@ -107,20 +103,20 @@ export default class FeatureService {
   }
 
   get supportsGeojson() {
-    return this.serviceMetadata.supportedQueryFormats.indexOf("geoJSON") > -1;
+    return this.serviceMetadata.supportedQueryFormats.indexOf('geoJSON') > -1;
   }
 
   get supportsPbf() {
-    return this.serviceMetadata.supportedQueryFormats.indexOf("PBF") > -1;
+    return this.serviceMetadata.supportedQueryFormats.indexOf('PBF') > -1;
   }
 
   disableRequests() {
-    this._map.off("moveend", this._boundEvent);
+    this._map.off('moveend', this._boundEvent);
   }
 
   enableRequests() {
     this._boundEvent = this._findAndMapData.bind(this);
-    this._map.on("moveend", this._boundEvent);
+    this._map.on('moveend', this._boundEvent);
   }
 
   _clearAndRefreshTiles() {
@@ -136,7 +132,7 @@ export default class FeatureService {
   }
 
   clearWhere() {
-    this._esriServiceOptions.where = "1=1";
+    this._esriServiceOptions.where = '1=1';
     this._clearAndRefreshTiles();
   }
 
@@ -207,9 +203,7 @@ export default class FeatureService {
       let minZoomOfCandidates = candidateTiles[0][2];
       while (minZoomOfCandidates < zoomLevel) {
         const newCandidateTiles = [];
-        candidateTiles.forEach((t) =>
-          newCandidateTiles.push(...tilebelt.getChildren(t))
-        );
+        candidateTiles.forEach(t => newCandidateTiles.push(...tilebelt.getChildren(t)));
         candidateTiles = newCandidateTiles;
         minZoomOfCandidates = candidateTiles[0][2];
       }
@@ -239,17 +233,16 @@ export default class FeatureService {
     // This tolerance will be used to inform the quantization/simplification of features
     const mapWidth = Math.abs(bounds[1][0] - bounds[0][0]);
     const tolerance =
-      (mapWidth / this._map.getCanvas().width) *
-      this._esriServiceOptions.simplifyFactor;
+      (mapWidth / this._map.getCanvas().width) * this._esriServiceOptions.simplifyFactor;
     await this._loadTiles(tilesToRequest, tolerance, featureIdIndex, fc);
     this._updateFcOnMap(fc);
   }
 
   async _loadTiles(tilesToRequest, tolerance, featureIdIndex, fc) {
-    return new Promise((resolve) => {
-      const promises = tilesToRequest.map((t) => this._getTile(t, tolerance));
-      Promise.all(promises).then((featureCollections) => {
-        featureCollections.forEach((tileFc) => {
+    return new Promise(resolve => {
+      const promises = tilesToRequest.map(t => this._getTile(t, tolerance));
+      Promise.all(promises).then(featureCollections => {
+        featureCollections.forEach(tileFc => {
           if (tileFc) this._iterateItems(tileFc, featureIdIndex, fc);
         });
         resolve();
@@ -258,7 +251,7 @@ export default class FeatureService {
   }
 
   _iterateItems(tileFc, featureIdIndex, fc) {
-    tileFc.features.forEach((feature) => {
+    tileFc.features.forEach(feature => {
       if (!featureIdIndex.has(feature.id)) {
         fc.features.push(feature);
         featureIdIndex.set(feature.id);
@@ -302,37 +295,33 @@ export default class FeatureService {
       quantizationParameters: JSON.stringify({
         extent,
         tolerance,
-        mode: "view",
+        mode: 'view',
       }),
-      resultType: "tile",
-      spatialRel: "esriSpatialRelIntersects",
-      geometryType: "esriGeometryEnvelope",
+      resultType: 'tile',
+      spatialRel: 'esriSpatialRelIntersects',
+      geometryType: 'esriGeometryEnvelope',
       inSR: 4326,
     });
 
-    if (this._time) params.append("time", this._time);
+    if (this._time) params.append('time', this._time);
 
     this._appendTokenIfExists(params);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       fetch(`${`${this._esriServiceOptions.url}/query?${params.toString()}`}`)
-        .then((response) => {
+        .then(response => {
           //eslint-disable-line
-          return this._esriServiceOptions.f === "pbf"
-            ? response.arrayBuffer()
-            : response.json();
+          return this._esriServiceOptions.f === 'pbf' ? response.arrayBuffer() : response.json();
         })
-        .then((data) => {
+        .then(data => {
           let out;
           try {
             out =
-              this._esriServiceOptions.f === "pbf"
+              this._esriServiceOptions.f === 'pbf'
                 ? tileDecode(new Uint8Array(data)).featureCollection
                 : data;
           } catch (err) {
-            console.error(
-              "Could not parse arcgis buffer. Please check the url you requested."
-            );
+            console.error('Could not parse arcgis buffer. Please check the url you requested.');
           }
           resolve(out);
         });
@@ -353,18 +342,17 @@ export default class FeatureService {
   }
 
   _getServiceMetadata() {
-    if (this.serviceMetadata !== null)
-      return Promise.resolve(this.serviceMetadata);
+    if (this.serviceMetadata !== null) return Promise.resolve(this.serviceMetadata);
     return new Promise((resolve, reject) => {
-      const params = new URLSearchParams({ f: "json" });
+      const params = new URLSearchParams({ f: 'json' });
       this._appendTokenIfExists(params);
       fetch(`${this._esriServiceOptions.url}?${params.toString()}`)
-        .then((response) => response.json())
-        .then((data) => {
+        .then(response => response.json())
+        .then(data => {
           this.serviceMetadata = data;
           resolve(this.serviceMetadata);
         })
-        .catch((err) => reject(err));
+        .catch(err => reject(err));
     });
   }
 
@@ -374,7 +362,7 @@ export default class FeatureService {
 
     const params = new URLSearchParams({
       sr: 4326,
-      geometryType: "esriGeometryPoint",
+      geometryType: 'esriGeometryPoint',
       geometry: JSON.stringify({
         x: lnglat.lng,
         y: lnglat.lat,
@@ -384,57 +372,55 @@ export default class FeatureService {
       }),
       returnGeometry,
       time: this._time,
-      outFields: "*",
-      spatialRel: "esriSpatialRelIntersects",
-      units: "esriSRUnit_Meter",
+      outFields: '*',
+      spatialRel: 'esriSpatialRelIntersects',
+      units: 'esriSRUnit_Meter',
       distance: radius,
-      f: "geojson",
+      f: 'geojson',
     });
 
     this._appendTokenIfExists(params);
 
-    return new Promise((resolve) => {
-      this._requestJson(
-        `${this._esriServiceOptions.url}/query?${params.toString()}`
-      ).then((data) => resolve(data));
+    return new Promise(resolve => {
+      this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`).then(data =>
+        resolve(data),
+      );
     });
   }
 
   getFeaturesByObjectIds(objectIds, returnGeometry) {
-    if (Array.isArray(objectIds)) objectIds = objectIds.join(",");
+    if (Array.isArray(objectIds)) objectIds = objectIds.join(',');
     returnGeometry = returnGeometry ? returnGeometry : false;
     const params = new URLSearchParams({
       sr: 4326,
       objectIds,
       returnGeometry,
-      outFields: "*",
-      f: "geojson",
+      outFields: '*',
+      f: 'geojson',
     });
 
     this._appendTokenIfExists(params);
 
-    return new Promise((resolve) => {
-      this._requestJson(
-        `${this._esriServiceOptions.url}/query?${params.toString()}`
-      ).then((data) => resolve(data));
+    return new Promise(resolve => {
+      this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`).then(data =>
+        resolve(data),
+      );
     });
   }
 
   _projectBounds() {
     const params = new URLSearchParams({
       geometries: JSON.stringify({
-        geometryType: "esriGeometryEnvelope",
+        geometryType: 'esriGeometryEnvelope',
         geometries: [this.serviceMetadata.extent],
       }),
       inSR: this.serviceMetadata.extent.spatialReference.wkid,
       outSR: 4326,
-      f: "json",
+      f: 'json',
     });
 
-    this._requestJson(
-      `${this._esriServiceOptions.projectionEndpoint}?${params.toString()}`
-    )
-      .then((data) => {
+    this._requestJson(`${this._esriServiceOptions.projectionEndpoint}?${params.toString()}`)
+      .then(data => {
         const extent = data.geometries[0];
         this._maxExtent = [extent.xmin, extent.ymin, extent.xmax, extent.ymax];
         this._clearAndRefreshTiles();
@@ -448,35 +434,30 @@ export default class FeatureService {
   _requestJson(url) {
     return new Promise((resolve, reject) => {
       fetch(url)
-        .then((response) => response.json())
-        .then((data) => {
-          if ("error" in data) reject(new Error("Endpoint doesnt exist"));
+        .then(response => response.json())
+        .then(data => {
+          if ('error' in data) reject(new Error('Endpoint doesnt exist'));
           resolve(data);
         })
-        .catch((error) => reject(error));
+        .catch(error => reject(error));
     });
   }
 
   _setAttribution() {
-    const POWERED_BY_ESRI_ATTRIBUTION_STRING =
-      'Powered by <a href="https://www.esri.com">Esri</a>';
+    const POWERED_BY_ESRI_ATTRIBUTION_STRING = 'Powered by <a href="https://www.esri.com">Esri</a>';
 
-    const attributionController = this._map._controls.find(
-      (c) => "_attribHTML" in c
-    );
+    const attributionController = this._map._controls.find(c => '_attribHTML' in c);
 
     if (!attributionController) return;
 
     const customAttribution = attributionController.options.customAttribution;
 
-    if (typeof customAttribution === "string") {
+    if (typeof customAttribution === 'string') {
       attributionController.options.customAttribution = `${customAttribution} | ${POWERED_BY_ESRI_ATTRIBUTION_STRING}`;
     } else if (customAttribution === undefined) {
       attributionController.options.customAttribution = POWERED_BY_ESRI_ATTRIBUTION_STRING;
     } else if (Array.isArray(customAttribution)) {
-      if (
-        customAttribution.indexOf(POWERED_BY_ESRI_ATTRIBUTION_STRING) === -1
-      ) {
+      if (customAttribution.indexOf(POWERED_BY_ESRI_ATTRIBUTION_STRING) === -1) {
         customAttribution.push(POWERED_BY_ESRI_ATTRIBUTION_STRING);
       }
     }
@@ -495,7 +476,7 @@ export default class FeatureService {
 
   _appendTokenIfExists(params) {
     if (this._esriServiceOptions.token !== null) {
-      params.append("token", this._esriServiceOptions.token);
+      params.append('token', this._esriServiceOptions.token);
     }
   }
 }
