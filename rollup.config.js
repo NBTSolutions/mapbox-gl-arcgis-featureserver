@@ -1,30 +1,37 @@
-import {terser} from 'rollup-plugin-terser'
-import resolve from '@rollup/plugin-node-resolve'
-import commonjs from '@rollup/plugin-commonjs'
+// // import { terser } from 'rollup-plugin-terser'
+// import { babel } from "@rollup/plugin-babel";
+// // import resolve from '@rollup/plugin-node-resolve'
+// // import commonjs from '@rollup/plugin-commonjs'
 
-const output = (input, file, format, plugins) => ({
-  input,
+// const output = (input, file, format, plugins) => ({
+//   input,
+//   output: {
+//     name: file,
+//     file,
+//     format,
+//   },
+//   external: ["pbf"],
+//   plugins,
+// });
+
+// export default [
+//   output(
+//     "./src/main.js",
+//     "./dist/mapbox-gl-arcgis-featureserver.min.js",
+//     "umd",
+//     [babel({ babelHelpers: "bundled" })]
+//   ),
+// ];
+
+import { babel } from "@rollup/plugin-babel";
+
+const config = {
+  input: "src/main.js",
   output: {
-    name: file,
-    file,
-    format
+    file: "./dist/mapbox-gl-arcgis-featureserver.min.js",
+    format: "esm",
   },
-  external: ['pbf'],
-  plugins
-})
+  plugins: [babel({ exclude: "node_modules/**", extensions: [".js", ".ts"] })],
+};
 
-export default [
-  output('./src/main.js', './dist/mapbox-gl-arcgis-featureserver.js', 'umd', [
-    commonjs(),
-    resolve()
-  ]),
-  output('./src/main.js', './dist/mapbox-gl-arcgis-featureserver.min.js', 'umd', [
-    commonjs(),
-    resolve(),
-    terser()
-  ]),
-  output('./src/main.js', './dist/mapbox-gl-arcgis-featureserver.esm.js', 'esm', [
-    commonjs(),
-    resolve()
-  ])
-]
+export default config;
