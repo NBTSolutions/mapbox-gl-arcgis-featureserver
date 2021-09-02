@@ -2,6 +2,18 @@ import tilebelt from '@mapbox/tilebelt';
 import tileDecode from 'arcgis-pbf-parser';
 
 export default class FeatureService {
+  static #fallbackProjectionEndpoint = 'https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project';
+
+  #_map;
+  #_maxExtent = [-Infinity, Infinity, -Infinity, Infinity];
+  #_esriServiceOptions;
+  #_tileIndices = new Map();
+  #_featureIndices = new Map();
+  #_featureCollections = new Map();
+  #_boundEvent = null;
+
+  serviceMetadata = null;
+
   constructor(sourceId, map, arcgisOptions, geojsonSourceOptions) {
     if (!sourceId || !map || !arcgisOptions)
       throw new Error(
@@ -11,13 +23,13 @@ export default class FeatureService {
       throw new Error('A url must be supplied as part of the esriServiceOptions object.');
 
     this.sourceId = sourceId;
-    this._map = map;
+    this.#_map = map;
 
-    this._tileIndices = new Map();
-    this._featureIndices = new Map();
-    this._featureCollections = new Map();
+    this.#_tileIndices = new Map();
+    this.#_featureIndices = new Map();
+    this.#_featureCollections = new Map();
 
-    this._esriServiceOptions = Object.assign(
+    this.#_esriServiceOptions = Object.assign(
       {
         useStaticZoomLevel: false,
         minZoom: arcgisOptions.useStaticZoomLevel ? 7 : 2,
@@ -38,13 +50,11 @@ export default class FeatureService {
       arcgisOptions,
     );
 
-    this._fallbackProjectionEndpoint =
-      'https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project';
     this.serviceMetadata = null;
-    this._maxExtent = [-Infinity, Infinity, -Infinity, Infinity];
+    this.#_maxExtent = [-Infinity, Infinity, -Infinity, Infinity];
 
     const gjOptions = !geojsonSourceOptions ? {} : geojsonSourceOptions;
-    this._map.addSource(
+    this.#_map.addSource(
       sourceId,
       Object.assign(gjOptions, {
         type: 'geojson',
@@ -55,13 +65,13 @@ export default class FeatureService {
     this._getServiceMetadata().then(() => {
       if (!this.supportsPbf) {
         if (!this.supportsGeojson) {
-          this._map.removeSource(sourceId);
+          this.#_map.removeSource(sourceId);
           throw new Error('Server does not support PBF or GeoJSON query formats.');
         }
-        this._esriServiceOptions.f = 'geojson';
+        this.#_esriServiceOptions.f = 'geojson';
       }
 
-      if (this._esriServiceOptions.useSeviceBounds) {
+      if (this.#_esriServiceOptions.useSeviceBounds) {
         const serviceExtent = this.serviceMetadata.extent;
         if (serviceExtent.spatialReference.wkid === 4326) {
           this._setBounds([
@@ -76,8 +86,10 @@ export default class FeatureService {
         }
       }
 
-      if (this._esriServiceOptions.outFields !== '*') {
-        this._esriServiceOptions.outFields = `${this._esriServiceOptions.outFields},${this.serviceMetadata.uniqueIdField.name}`;
+      if (this.#_esriServiceOptions.outFields !== '*') {
+        this.#_esriServiceOptions.outFields = `${this.#_esriServiceOptions.outFields},${
+          this.serviceMetadata.uniqueIdField.name
+        }`;
       }
 
       this._setAttribution();
@@ -88,7 +100,7 @@ export default class FeatureService {
 
   destroySource() {
     this.disableRequests();
-    this._map.removeSource(this.sourceId);
+    this.#_map.removeSource(this.sourceId);
   }
 
   _getBlankFc() {
@@ -99,7 +111,7 @@ export default class FeatureService {
   }
 
   _setBounds(bounds) {
-    this._maxExtent = bounds;
+    this.#_maxExtent = bounds;
   }
 
   get supportsGeojson() {
@@ -111,68 +123,68 @@ export default class FeatureService {
   }
 
   disableRequests() {
-    this._map.off('moveend', this._boundEvent);
+    this.#_map.off('moveend', this.#_boundEvent);
   }
 
   enableRequests() {
-    this._boundEvent = this._findAndMapData.bind(this);
-    this._map.on('moveend', this._boundEvent);
+    this.#_boundEvent = this._findAndMapData.bind(this);
+    this.#_map.on('moveend', this.#_boundEvent);
   }
 
   _clearAndRefreshTiles() {
-    this._tileIndices = new Map();
-    this._featureIndices = new Map();
-    this._featureCollections = new Map();
+    this.#_tileIndices = new Map();
+    this.#_featureIndices = new Map();
+    this.#_featureCollections = new Map();
     this._findAndMapData();
   }
 
   setWhere(newWhere) {
-    this._esriServiceOptions.where = newWhere;
+    this.#_esriServiceOptions.where = newWhere;
     this._clearAndRefreshTiles();
   }
 
   clearWhere() {
-    this._esriServiceOptions.where = '1=1';
+    this.#_esriServiceOptions.where = '1=1';
     this._clearAndRefreshTiles();
   }
 
   setDate(to, from) {
-    this._esriServiceOptions.to = to;
-    this._esriServiceOptions.from = from;
+    this.#_esriServiceOptions.to = to;
+    this.#_esriServiceOptions.from = from;
     this._clearAndRefreshTiles();
   }
 
   _createOrGetTileIndex(zoomLevel) {
-    const existingZoomIndex = this._tileIndices.get(zoomLevel);
+    const existingZoomIndex = this.#_tileIndices.get(zoomLevel);
     if (existingZoomIndex) return existingZoomIndex;
     const newIndex = new Map();
-    this._tileIndices.set(zoomLevel, newIndex);
+    this.#_tileIndices.set(zoomLevel, newIndex);
     return newIndex;
   }
 
   _createOrGetFeatureCollection(zoomLevel) {
-    const existingZoomIndex = this._featureCollections.get(zoomLevel);
+    const existingZoomIndex = this.#_featureCollections.get(zoomLevel);
     if (existingZoomIndex) return existingZoomIndex;
     const fc = this._getBlankFc();
-    this._featureCollections.set(zoomLevel, fc);
+    this.#_featureCollections.set(zoomLevel, fc);
     return fc;
   }
 
   _createOrGetFeatureIdIndex(zoomLevel) {
-    const existingFeatureIdIndex = this._featureIndices.get(zoomLevel);
+    const existingFeatureIdIndex = this.#_featureIndices.get(zoomLevel);
     if (existingFeatureIdIndex) return existingFeatureIdIndex;
     const newFeatureIdIndex = new Map();
-    this._featureIndices.set(zoomLevel, newFeatureIdIndex);
+    this.#_featureIndices.set(zoomLevel, newFeatureIdIndex);
     return newFeatureIdIndex;
   }
 
   async _findAndMapData() {
-    const z = this._map.getZoom();
+    const z = this.#_map.getZoom();
 
-    if (z < this._esriServiceOptions.minZoom) {
+    if (z < this.#_esriServiceOptions.minZoom) {
       return;
     }
-    const bounds = this._map.getBounds().toArray();
+    const bounds = this.#_map.getBounds().toArray();
     const primaryTile = tilebelt.bboxToTile([
       bounds[0][0],
       bounds[0][1],
@@ -181,16 +193,16 @@ export default class FeatureService {
     ]);
 
     if (
-      this._esriServiceOptions.useSeviceBounds &&
-      !this._doesTileOverlapBbox(this._maxExtent, bounds)
+      this.#_esriServiceOptions.useSeviceBounds &&
+      !this._doesTileOverlapBbox(this.#_maxExtent, bounds)
     ) {
       return;
     }
 
     // If we're not using a static zoom level we'll round to the nearest even zoom level
     // This means we don't need to request new data for every zoom level allowing us to reuse the previous levels data
-    const zoomLevel = this._esriServiceOptions.useStaticZoomLevel
-      ? this._esriServiceOptions.minZoom
+    const zoomLevel = this.#_esriServiceOptions.useStaticZoomLevel
+      ? this.#_esriServiceOptions.minZoom
       : 2 * Math.floor(z / 2);
     const zoomLevelIndex = this._createOrGetTileIndex(zoomLevel);
     const featureIdIndex = this._createOrGetFeatureIdIndex(zoomLevel);
@@ -233,7 +245,7 @@ export default class FeatureService {
     // This tolerance will be used to inform the quantization/simplification of features
     const mapWidth = Math.abs(bounds[1][0] - bounds[0][0]);
     const tolerance =
-      (mapWidth / this._map.getCanvas().width) * this._esriServiceOptions.simplifyFactor;
+      (mapWidth / this.#_map.getCanvas().width) * this.#_esriServiceOptions.simplifyFactor;
     await this._loadTiles(tilesToRequest, tolerance, featureIdIndex, fc);
     this._updateFcOnMap(fc);
   }
@@ -260,9 +272,9 @@ export default class FeatureService {
   }
 
   get _time() {
-    if (!this._esriServiceOptions.to) return false;
-    let from = this._esriServiceOptions.from;
-    let to = this._esriServiceOptions.to;
+    if (!this.#_esriServiceOptions.to) return false;
+    let from = this.#_esriServiceOptions.from;
+    let to = this.#_esriServiceOptions.to;
     if (from instanceof Date) from = from.valueOf();
     if (to instanceof Date) to = to.valueOf();
 
@@ -284,14 +296,14 @@ export default class FeatureService {
     };
 
     const params = new URLSearchParams({
-      f: this._esriServiceOptions.f,
+      f: this.#_esriServiceOptions.f,
       geometry: JSON.stringify(extent),
-      where: this._esriServiceOptions.where,
-      outFields: this._esriServiceOptions.outFields,
+      where: this.#_esriServiceOptions.where,
+      outFields: this.#_esriServiceOptions.outFields,
       outSR: 4326,
       returnZ: false,
       returnM: false,
-      precision: this._esriServiceOptions.precision,
+      precision: this.#_esriServiceOptions.precision,
       quantizationParameters: JSON.stringify({
         extent,
         tolerance,
@@ -308,16 +320,16 @@ export default class FeatureService {
     this._appendTokenIfExists(params);
 
     return new Promise(resolve => {
-      fetch(`${`${this._esriServiceOptions.url}/query?${params.toString()}`}`)
+      fetch(`${`${this.#_esriServiceOptions.url}/query?${params.toString()}`}`)
         .then(response => {
           //eslint-disable-line
-          return this._esriServiceOptions.f === 'pbf' ? response.arrayBuffer() : response.json();
+          return this.#_esriServiceOptions.f === 'pbf' ? response.arrayBuffer() : response.json();
         })
         .then(data => {
           let out;
           try {
             out =
-              this._esriServiceOptions.f === 'pbf'
+              this.#_esriServiceOptions.f === 'pbf'
                 ? tileDecode(new Uint8Array(data)).featureCollection
                 : data;
           } catch (err) {
@@ -329,7 +341,7 @@ export default class FeatureService {
   }
 
   _updateFcOnMap(fc) {
-    this._map.getSource(this.sourceId).setData(fc);
+    this.#_map.getSource(this.sourceId).setData(fc);
   }
 
   _doesTileOverlapBbox(tile, bbox) {
@@ -346,7 +358,7 @@ export default class FeatureService {
     return new Promise((resolve, reject) => {
       const params = new URLSearchParams({ f: 'json' });
       this._appendTokenIfExists(params);
-      fetch(`${this._esriServiceOptions.url}?${params.toString()}`)
+      fetch(`${this.#_esriServiceOptions.url}?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
           this.serviceMetadata = data;
@@ -382,7 +394,7 @@ export default class FeatureService {
     this._appendTokenIfExists(params);
 
     return new Promise(resolve => {
-      this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`).then(data =>
+      this._requestJson(`${this.#_esriServiceOptions.url}/query?${params.toString()}`).then(data =>
         resolve(data),
       );
     });
@@ -402,7 +414,7 @@ export default class FeatureService {
     this._appendTokenIfExists(params);
 
     return new Promise(resolve => {
-      this._requestJson(`${this._esriServiceOptions.url}/query?${params.toString()}`).then(data =>
+      this._requestJson(`${this.#_esriServiceOptions.url}/query?${params.toString()}`).then(data =>
         resolve(data),
       );
     });
@@ -419,14 +431,14 @@ export default class FeatureService {
       f: 'json',
     });
 
-    this._requestJson(`${this._esriServiceOptions.projectionEndpoint}?${params.toString()}`)
+    this._requestJson(`${this.#_esriServiceOptions.projectionEndpoint}?${params.toString()}`)
       .then(data => {
         const extent = data.geometries[0];
-        this._maxExtent = [extent.xmin, extent.ymin, extent.xmax, extent.ymax];
+        this.#_maxExtent = [extent.xmin, extent.ymin, extent.xmax, extent.ymax];
         this._clearAndRefreshTiles();
       })
       .catch(() => {
-        this._esriServiceOptions.projectionEndpoint = this._fallbackProjectionEndpoint;
+        this.#_esriServiceOptions.projectionEndpoint = FeatureService.#fallbackProjectionEndpoint;
         this._projectBounds();
       });
   }
@@ -446,7 +458,7 @@ export default class FeatureService {
   _setAttribution() {
     const POWERED_BY_ESRI_ATTRIBUTION_STRING = 'Powered by <a href="https://www.esri.com">Esri</a>';
 
-    const attributionController = this._map._controls.find(c => '_attribHTML' in c);
+    const attributionController = this.#_map._controls.find(c => '_attribHTML' in c);
 
     if (!attributionController) return;
 
@@ -463,10 +475,10 @@ export default class FeatureService {
     }
 
     if (
-      this._esriServiceOptions.setAttributionFromService &&
+      this.#_esriServiceOptions.setAttributionFromService &&
       this.serviceMetadata.copyrightText.length > 0
     ) {
-      this._map.style.sourceCaches[
+      this.#_map.style.sourceCaches[
         this.sourceId
       ]._source.attribution = this.serviceMetadata.copyrightText;
     }
@@ -475,8 +487,8 @@ export default class FeatureService {
   }
 
   _appendTokenIfExists(params) {
-    if (this._esriServiceOptions.token !== null) {
-      params.append('token', this._esriServiceOptions.token);
+    if (this.#_esriServiceOptions.token !== null) {
+      params.append('token', this.#_esriServiceOptions.token);
     }
   }
 }
