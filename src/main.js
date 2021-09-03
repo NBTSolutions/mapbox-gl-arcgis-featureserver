@@ -1,5 +1,8 @@
 import tilebelt from '@mapbox/tilebelt';
 import tileDecode from 'arcgis-pbf-parser';
+import { polygon as turfPolygon } from '@turf/helpers';
+import bboxPolygon from '@turf/bbox-polygon';
+import intersect from '@turf/intersect';
 
 export default class FeatureService {
   static #fallbackProjectionEndpoint = 'https://tasks.arcgisonline.com/arcgis/rest/services/Geometry/GeometryServer/project';
@@ -377,6 +380,10 @@ export default class FeatureService {
     });
   }
 
+  _polygonsIntersectsExtent(polygonCoordinates) {
+    return !!intersect(turfPolygon(polygonCoordinates), bboxPolygon(this.#_maxExtent));
+  }
+
   getFeaturesByLonLat(lnglat, radius, returnGeometry) {
     returnGeometry = returnGeometry ? returnGeometry : false;
     radius = radius ? radius : 20;
@@ -410,8 +417,12 @@ export default class FeatureService {
   }
 
   getFeaturesByPolygon(polygon) {
+    if (!this._polygonsIntersectsExtent(polygon)) {
+      return this._getBlankFc();
+    }
+
     const esriPolygon = {
-      rings: [polygon],
+      rings: polygon,
       spatialReference: { wkid: 4326 },
     };
 
