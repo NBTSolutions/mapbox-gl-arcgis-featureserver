@@ -93,8 +93,6 @@ export default class FeatureService {
       }
 
       this._setAttribution();
-
-      this.enableRequests();
     });
   }
 
@@ -124,18 +122,26 @@ export default class FeatureService {
 
   disableRequests() {
     this.#_map.off('moveend', this.#_boundEvent);
+    this.#_boundEvent = null;
   }
 
   enableRequests() {
     this.#_boundEvent = this._findAndMapData.bind(this);
     this.#_map.on('moveend', this.#_boundEvent);
+    this._findAndMapData();
+  }
+
+  requestsAreEnabled() {
+    return this.#_boundEvent !== null;
   }
 
   _clearAndRefreshTiles() {
     this.#_tileIndices = new Map();
     this.#_featureIndices = new Map();
     this.#_featureCollections = new Map();
-    this._findAndMapData();
+    if (this.requestsAreEnabled) {
+      this._findAndMapData();
+    }
   }
 
   setWhere(newWhere) {
