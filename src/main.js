@@ -118,6 +118,11 @@ export default class FeatureService {
   get layerId() {
     return this.#_layerId;
   }
+
+  get extent() {
+    return this.#_maxExtent;
+  }
+
   disableRequests() {
     this.#_map.off('moveend', this.#_boundEvent);
     this.#_boundEvent = null;
