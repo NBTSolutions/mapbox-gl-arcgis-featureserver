@@ -11,10 +11,11 @@ export default class FeatureService {
   #_featureIndices = new Map();
   #_featureCollections = new Map();
   #_boundEvent = null;
+  #_layerId = null;
 
   serviceMetadata = null;
 
-  constructor(sourceId, map, arcgisOptions, geojsonSourceOptions) {
+  constructor(sourceId, map, arcgisOptions, geojsonSourceOptions = {}, vetroOptions = {}) {
     if (!sourceId || !map || !arcgisOptions)
       throw new Error(
         'Source id, map and arcgisOptions must be supplied as the first three arguments.',
@@ -46,14 +47,15 @@ export default class FeatureService {
       arcgisOptions,
     );
 
-    const gjOptions = !geojsonSourceOptions ? {} : geojsonSourceOptions;
-    this.#_map.addSource(
-      sourceId,
-      Object.assign(gjOptions, {
-        type: 'geojson',
-        data: this._getBlankFc(),
-      }),
-    );
+    if (vetroOptions.layerId) {
+      this.#_layerId = vetroOptions.layerId;
+    }
+
+    this.#_map.addSource(sourceId, {
+      ...geojsonSourceOptions,
+      type: 'geojson',
+      data: this._getBlankFc(),
+    });
 
     this._getServiceMetadata().then(() => {
       if (!this.supportsPbf) {
@@ -113,6 +115,9 @@ export default class FeatureService {
     return this.serviceMetadata.supportedQueryFormats.indexOf('PBF') > -1;
   }
 
+  get layerId() {
+    return this.#_layerId;
+  }
   disableRequests() {
     this.#_map.off('moveend', this.#_boundEvent);
     this.#_boundEvent = null;
