@@ -25,10 +25,6 @@ export default class FeatureService {
     this.sourceId = sourceId;
     this.#_map = map;
 
-    this.#_tileIndices = new Map();
-    this.#_featureIndices = new Map();
-    this.#_featureCollections = new Map();
-
     this.#_esriServiceOptions = Object.assign(
       {
         useStaticZoomLevel: false,
@@ -49,9 +45,6 @@ export default class FeatureService {
       },
       arcgisOptions,
     );
-
-    this.serviceMetadata = null;
-    this.#_maxExtent = [-Infinity, Infinity, -Infinity, Infinity];
 
     const gjOptions = !geojsonSourceOptions ? {} : geojsonSourceOptions;
     this.#_map.addSource(
