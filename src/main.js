@@ -399,6 +399,33 @@ export default class FeatureService {
     });
   }
 
+  getFeaturesByPolygon(polygon) {
+    const esriPolygon = {
+      rings: [polygon],
+      spatialReference: { wkid: 4326 },
+    };
+
+    const params = new URLSearchParams({
+      sr: 4326,
+      geometryType: 'esriGeometryPolygon',
+      geometry: JSON.stringify(esriPolygon),
+      returnGeometry: true,
+      time: this._time,
+      outFields: '*',
+      spatialRel: 'esriSpatialRelIntersects',
+      units: 'esriSRUnit_Meter',
+      f: 'geojson',
+    });
+
+    this._appendTokenIfExists(params);
+
+    return new Promise(resolve => {
+      this._requestJson(`${this.#_esriServiceOptions.url}/query?${params.toString()}`).then(data =>
+        resolve(data),
+      );
+    });
+  }
+
   getFeaturesByObjectIds(objectIds, returnGeometry) {
     if (Array.isArray(objectIds)) objectIds = objectIds.join(',');
     returnGeometry = returnGeometry ? returnGeometry : false;
