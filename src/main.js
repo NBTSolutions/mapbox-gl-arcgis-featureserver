@@ -437,8 +437,16 @@ export default class FeatureService {
         this._clearAndRefreshTiles();
       })
       .catch(() => {
-        this.#_esriServiceOptions.projectionEndpoint = FeatureService.#fallbackProjectionEndpoint;
-        this._projectBounds();
+        if (
+          this.#_esriServiceOptions.projectionEndpoint ===
+          FeatureService.#fallbackProjectionEndpoint
+        ) {
+          throw new Error('Could not get project bounds');
+        } else {
+          this.#_esriServiceOptions.projectionEndpoint = FeatureService.#fallbackProjectionEndpoint;
+
+          this._projectBounds();
+        }
       });
   }
 
