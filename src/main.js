@@ -132,7 +132,7 @@ export default class FeatureService {
     this.#_tileIndices = new Map();
     this.#_featureIndices = new Map();
     this.#_featureCollections = new Map();
-    if (this.requestsAreEnabled) {
+    if (this.requestsAreEnabled()) {
       this._findAndMapData();
     }
   }
