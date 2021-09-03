@@ -23,15 +23,15 @@
 //   ),
 // ];
 
-import { babel } from "@rollup/plugin-babel";
+import { babel } from '@rollup/plugin-babel';
 
 const config = {
-  input: "src/main.js",
+  input: 'src/main.js',
   output: {
-    file: "./dist/mapbox-gl-arcgis-featureserver.min.js",
-    format: "esm",
+    file: './dist/mapbox-gl-arcgis-featureserver.min.js',
+    format: 'esm',
   },
-  plugins: [babel({ exclude: "node_modules/**", extensions: [".js", ".ts"] })],
+  plugins: [babel({ exclude: 'node_modules/**', extensions: ['.js'], babelHelpers: 'bundled' })],
 };
 
 export default config;
